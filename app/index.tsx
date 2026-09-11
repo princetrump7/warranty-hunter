@@ -1,4 +1,5 @@
 import { Link, useRouter } from "expo-router";
+import { useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useWarranties } from "../src/store/WarrantyContext";
 import { theme } from "../src/theme";
@@ -16,10 +17,10 @@ export default function Home() {
   );
   const urgent = sorted.filter((i) => daysLeft(i.expiryDate) <= 30).length;
 
-  if (!loading && !onboarded) {
-    // Cheap redirect without extra dep
-    (router as any).replace?.("/onboarding");
-  }
+  // Redirect during an effect, never during render (router throws otherwise).
+  useEffect(() => {
+    if (!loading && !onboarded) router.replace("/onboarding");
+  }, [loading, onboarded]);
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={{ padding: 16, gap: 12 }}>

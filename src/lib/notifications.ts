@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import { daysLeft } from "./expiry";
 
 type NotificationsModule = typeof import("expo-notifications");
@@ -5,11 +6,23 @@ type NotificationsModule = typeof import("expo-notifications");
 let cached: NotificationsModule | null = null;
 let warned = false;
 
-// expo-notifications was removed from Expo Go in SDK 53+. A static import
-// crashes the whole app there, so load it lazily: Expo Go gets a working
-// app with reminders disabled, dev builds get full functionality.
+function unavailable(reason: string): null {
+  if (!warned) {
+    warned = true;
+    console.warn(`[notifications] disabled: ${reason}`);
+  }
+  return null;
+}
+
+// expo-notifications was removed from Expo Go in SDK 53+: even importing
+// the module throws there (a side-effect file registers a push listener).
+// So under Expo Go we don't touch the module at all; dev builds get full
+// functionality via lazy dynamic import.
 async function loadNotifications(): Promise<NotificationsModule | null> {
   if (cached) return cached;
+  if (Constants.appOwnership === "expo") {
+    return unavailable("running in Expo Go (SDK 53+). Reminders need a dev build; everything else works.");
+  }
   try {
     const mod = await import("expo-notifications");
     mod.setNotificationHandler({
@@ -23,13 +36,7 @@ async function loadNotifications(): Promise<NotificationsModule | null> {
     cached = mod;
     return mod;
   } catch {
-    if (!warned) {
-      warned = true;
-      console.warn(
-        "[notifications] expo-notifications unavailable in this build (Expo Go SDK 53+). Reminders disabled; everything else works."
-      );
-    }
-    return null;
+    return unavailable("expo-notifications module failed to load in this build.");
   }
 }
 
