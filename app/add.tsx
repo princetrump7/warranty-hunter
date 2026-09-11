@@ -21,18 +21,29 @@ export default function Add() {
   const [saving, setSaving] = useState(false);
 
   async function pickReceipt() {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Camera needed", "Allow camera to attach a receipt photo.");
-      return;
-    }
-    const r = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    if (!r.canceled) setReceipt(r.assets[0].uri);
+    // Camera first, photo library as fallback (emulators, denied perms).
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status === "granted") {
+        const r = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+        if (!r.canceled) {
+          setReceipt(r.assets[0].uri);
+          return;
+        }
+      }
+    } catch {}
+    const lib = await ImagePicker.launchImageLibraryAsync({ quality: 0.7 });
+    if (!lib.canceled) setReceipt(lib.assets[0].uri);
   }
 
   async function save() {
     if (!productName.trim()) {
       Alert.alert("Missing product", "Give it a name — e.g. Sony Bravia 55 TV.");
+      return;
+    }
+    const expiry = addMonthsISO(purchaseDate, months);
+    if (!expiry) {
+      Alert.alert("Check the date", "Purchase date must look like YYYY-MM-DD.");
       return;
     }
     setSaving(true);
@@ -47,7 +58,7 @@ export default function Add() {
         store: store.trim() || "Unknown store",
         purchaseDate,
         warrantyMonths: months,
-        expiryDate: addMonthsISO(purchaseDate, months),
+        expiryDate: expiry,
         receiptUri: remote ?? receiptUri,
       });
       if (!res.ok && res.paywall) {
@@ -78,7 +89,11 @@ export default function Add() {
           </Pressable>
         ))}
       </View>
-      <Text style={styles.preview}>Expires: {addMonthsISO(purchaseDate, months)}</Text>
+      <Text style={styles.preview}>
+        {addMonthsISO(purchaseDate, months)
+          ? `Expires: ${addMonthsISO(purchaseDate, months)}`
+          : "Enter a valid date (YYYY-MM-DD)"}
+      </Text>
       <Pressable style={styles.ghost} onPress={pickReceipt}>
         <Text style={styles.ghostT}>{receiptUri ? "✓ Receipt attached" : "📷 Attach receipt photo"}</Text>
       </Pressable>

@@ -59,9 +59,12 @@ export function WarrantyProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // Never persist before the initial load completes, or a fresh mount
+  // would overwrite stored warranties with the empty initial state.
   useEffect(() => {
+    if (loading) return;
     AsyncStorage.setItem(KEY, JSON.stringify(items)).catch(() => {});
-  }, [items]);
+  }, [items, loading]);
 
   const value = useMemo<Store>(
     () => ({

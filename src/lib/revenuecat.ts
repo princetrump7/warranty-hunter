@@ -7,8 +7,8 @@ let configured = false;
 export async function configureRevenueCat() {
   if (configured) return;
   const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY ?? "";
-  if (!apiKey) {
-    console.warn("[revenuecat] Missing Android API key - paywall runs in demo mode.");
+  if (!apiKey || apiKey.startsWith("your-")) {
+    console.warn("[revenuecat] No real Android API key - paywall runs in demo mode.");
     return;
   }
   try {

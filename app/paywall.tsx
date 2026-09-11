@@ -2,9 +2,16 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import Purchases from "react-native-purchases";
-import { presentPaywallData } from "../src/lib/revenuecat";
+import { isPro, presentPaywallData } from "../src/lib/revenuecat";
 import { useWarranties } from "../src/store/WarrantyContext";
 import { theme } from "../src/theme";
+
+function choiceKey(id: string): "month" | "lifetime" | "annual" {
+  const v = id.toLowerCase();
+  if (v.includes("month")) return "month";
+  if (v.includes("life")) return "lifetime";
+  return "annual";
+}
 
 export default function Paywall() {
   const router = useRouter();
@@ -27,13 +34,25 @@ export default function Paywall() {
   async function buy() {
     try {
       const offs = await Purchases.getOfferings();
-      const pkg = offs.current?.availablePackages.find((p) => p.identifier.toLowerCase().includes(choice));
+      const pkg = offs.current?.availablePackages.find(
+        (p) => choiceKey(p.identifier) === choice
+      );
       if (pkg) await Purchases.purchasePackage(pkg);
       await refreshPro();
-      Alert.alert("You're Pro", "Hunter now watches unlimited warranties.");
-      router.back();
+      // Never claim Pro without a real entitlement (Expo Go / demo mode).
+      if (await isPro()) {
+        Alert.alert("You're Pro", "Hunter now watches unlimited warranties.");
+        router.back();
+      } else {
+        Alert.alert(
+          "Demo mode",
+          "No store billing in this build, so no purchase happened. The full RevenueCat flow (offerings → purchase → entitlement) is wired in code and lights up with a store listing."
+        );
+      }
     } catch (e: any) {
-      if (!e?.userCancelled) Alert.alert("Demo mode", "Store billing connects after Play listing. Entitlement logic is in code for judges.");
+      if (!e?.userCancelled) {
+        Alert.alert("Purchase failed", "Please try again.");
+      }
     }
   }
 
@@ -43,7 +62,11 @@ export default function Paywall() {
       <Text style={styles.title}>Never pay twice for broken stuff.</Text>
       <Text style={styles.body}>Free tracks 3 warranties. Pro watches everything, reminds you at 30/7/1 day, and keeps every receipt ready to claim.</Text>
       {pkgs.map((p) => (
-        <Pressable key={p.id} onPress={() => setChoice(String(p.id).toLowerCase().includes("month") ? "month" : String(p.id).toLowerCase().includes("life") ? "lifetime" : "annual")} style={[styles.opt, choice === (String(p.id).toLowerCase().includes("month") ? "month" : String(p.id).toLowerCase().includes("life") ? "lifetime" : "annual") && styles.optOn]}>
+        <Pressable
+          key={p.id}
+          onPress={() => setChoice(choiceKey(String(p.id)))}
+          style={[styles.opt, choice === choiceKey(String(p.id)) && styles.optOn]}
+        >
           <Text style={styles.optT}>{p.term} — {p.price}</Text>
         </Pressable>
       ))}
