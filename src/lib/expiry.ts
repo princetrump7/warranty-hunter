@@ -1,4 +1,4 @@
-import type { WarrantyStatus } from "./types";
+import type { WarrantyStatus } from "../types";
 
 export function addMonthsISO(dateISO: string, months: number): string {
   const d = new Date(dateISO + "T12:00:00");
